@@ -42,6 +42,7 @@ demo-nginx Deployment
         |
         |
 Proxmox VE
+```
 
 ## Main Components
 - Proxmox VE
