@@ -49,6 +49,50 @@ Proxmox VE
 - MetalLB
 - nginx demo Deployment
 
+## Screenshots / Verification
+
+### Proxmox VE VM List
+
+Kubernetes nodes were automatically created on Proxmox VE using Ansible and the Proxmox API.
+
+![Proxmox VM List](docs/images/proxmox-vm-list.png)
+
+### Kubernetes Nodes
+
+The Kubernetes cluster consists of one control-plane node and two worker nodes.
+
+![Kubernetes Nodes](docs/images/kubectl-nodes.png)
+
+### System Pods
+
+Flannel CNI, CoreDNS, kube-proxy, and control-plane components are running successfully.
+
+![Kubernetes System Pods](docs/images/kubectl-system-pods.png)
+
+### Demo nginx Deployment
+
+A demo nginx application was deployed with three replicas.
+
+![Demo nginx Deployment](docs/images/demo-nginx-deployment.png)
+
+### MetalLB LoadBalancer Service
+
+MetalLB assigned an external LAN IP address to the LoadBalancer Service.
+
+![MetalLB LoadBalancer Service](docs/images/metallb-loadbalancer-service.png)
+
+### nginx Access via MetalLB
+
+The demo nginx application is accessible through the MetalLB external IP.
+
+![nginx MetalLB Access](docs/images/nginx-metallb-access.png)
+
+### Pod Self-healing Test
+
+When a Pod was manually deleted, Kubernetes automatically recreated a new Pod and restored the desired replica count.
+
+![Pod Self-healing Test](docs/images/pod-self-healing.png)
+
 ## Verification
 
 Screenshots will be added later.
