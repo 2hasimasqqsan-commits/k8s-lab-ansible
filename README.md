@@ -6,6 +6,10 @@ Ansible portfolio project for building a Kubernetes lab cluster on Proxmox VE us
 
 This project automates the creation of Kubernetes lab VMs on Proxmox VE and configures a three-node Kubernetes cluster.
 
+This project demonstrates not only Kubernetes cluster provisioning, but also application deployment, LoadBalancer exposure in an on-premise lab environment, and Pod self-healing behavior using a Deployment.
+
+Proxmox VE上でKubernetes 3ノードクラスタを構築し、Flannel CNI、MetalLB、nginx Deploymentを用いて、オンプレ環境におけるLoadBalancer公開、Pod分散配置、セルフヒーリング動作を検証したプロジェクトです。
+
 The lab demonstrates:
 
 - Proxmox API based VM provisioning
