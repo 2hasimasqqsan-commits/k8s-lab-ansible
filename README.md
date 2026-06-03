@@ -98,20 +98,16 @@ When a Pod was manually deleted, Kubernetes automatically recreated a new Pod an
 
 ![Pod Self-healing Test](docs/images/pod-self-healing.png)
 
-## Verification
+## Verification Commands
 
-Screenshots will be added later.
+The following commands were used to verify the Kubernetes cluster and demo application.
 
-Planned verification materials:
-
-- Proxmox VM list
-- Ansible playbook result
-- kubectl get nodes -o wide
-- kubectl get pods -A -o wide
-- demo nginx Deployment and Service
-- MetalLB IPAddressPool and LoadBalancer Service
-- nginx access via MetalLB external IP
-- Pod deletion self-healing test
+```bash
+kubectl get nodes -o wide
+kubectl get pods -A -o wide
+kubectl get deploy,pods,svc -n demo-web -o wide
+kubectl get ipaddresspool,l2advertisement -n metallb-system
+curl http://192.168.56.249
 
 ## Security Notes
 
@@ -128,9 +124,11 @@ Do not commit:
 
 Use example values such as:
 
+```text
 192.168.56.0/24
 example.local
 CHANGE_ME
+```
 
 ## Notes
 
