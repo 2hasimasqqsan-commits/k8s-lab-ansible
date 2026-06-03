@@ -1,0 +1,84 @@
+---
+- name: Configure Kubernetes common settings on all nodes
+  hosts: k8s_cluster
+  become: true
+  gather_facts: true
+
+  roles:
+    - k8s_common
+
+- name: Initialize Kubernetes control plane
+  hosts: k8s_control
+  become: true
+  gather_facts: true
+
+  roles:
+    - k8s_control_plane
+
+- name: Install Flannel CNI
+  hosts: k8s_control
+  become: true
+  gather_facts: false
+
+  roles:
+    - flannel_cni
+
+- name: Generate Kubernetes worker join command
+  hosts: k8s_control
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Generate kubeadm join command
+      ansible.builtin.command: kubeadm token create --print-join-command
+      register: kubeadm_join_command_result
+      changed_when: false
+
+    - name: Store kubeadm join command as host fact
+      ansible.builtin.set_fact:
+        kubeadm_join_command: "{{ kubeadm_join_command_result.stdout }}"
+
+    - name: Show kubeadm join command
+      ansible.builtin.debug:
+        msg: "{{ kubeadm_join_command }}"
+
+- name: Join Kubernetes worker nodes
+  hosts: k8s_workers
+  become: true
+  gather_facts: false
+
+  roles:
+    - k8s_worker_join
+
+- name: Verify Kubernetes cluster nodes
+  hosts: k8s_control
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Check Kubernetes nodes
+      ansible.builtin.command: kubectl get nodes -o wide
+      register: final_nodes_result
+      changed_when: false
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+
+    - name: Show Kubernetes nodes
+      ansible.builtin.debug:
+        var: final_nodes_result.stdout_lines
+
+- name: Deploy demo web application
+  hosts: k8s_control
+  become: true
+  gather_facts: false
+
+  roles:
+    - demo_app
+
+- name: Install MetalLB load balancer
+  hosts: k8s_control
+  become: true
+  gather_facts: false
+
+  roles:
+    - metallb

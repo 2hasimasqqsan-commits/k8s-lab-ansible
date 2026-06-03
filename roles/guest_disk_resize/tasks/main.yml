@@ -1,0 +1,37 @@
+---
+- name: Wait for SSH to become available
+  ansible.builtin.wait_for_connection:
+    timeout: 300
+    delay: 10
+    sleep: 5
+
+- name: Ensure cloud-guest-utils is installed
+  ansible.builtin.apt:
+    name: cloud-guest-utils
+    state: present
+    update_cache: true
+
+- name: Expand root partition
+  ansible.builtin.command: "growpart {{ guest_root_disk }} {{ guest_root_partition_number }}"
+  register: growpart_result
+  changed_when: "'CHANGED' in growpart_result.stdout"
+  failed_when:
+    - growpart_result.rc != 0
+    - "'NOCHANGE' not in growpart_result.stdout"
+
+- name: Resize root filesystem
+  ansible.builtin.command: "resize2fs {{ guest_root_partition }}"
+  register: resize2fs_result
+  changed_when:
+    - "'Nothing to do' not in resize2fs_result.stdout"
+    - "'Nothing to do' not in resize2fs_result.stderr"
+  failed_when: resize2fs_result.rc != 0
+
+- name: Verify root filesystem size
+  ansible.builtin.command: df -h /
+  register: df_result
+  changed_when: false
+
+- name: Show root filesystem size
+  ansible.builtin.debug:
+    var: df_result.stdout_lines

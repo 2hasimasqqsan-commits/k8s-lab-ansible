@@ -1,0 +1,63 @@
+---
+- name: Check if Flannel is already installed
+  ansible.builtin.command: kubectl get namespace kube-flannel
+  register: flannel_ns_result
+  changed_when: false
+  failed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Download Flannel manifest
+  ansible.builtin.shell: |
+    set -e
+    curl -fsSL "{{ flannel_manifest_url }}" -o "{{ flannel_manifest_path }}"
+  args:
+    executable: /bin/bash
+  when: flannel_ns_result.rc != 0
+
+- name: Apply Flannel CNI manifest
+  ansible.builtin.command: kubectl apply -f "{{ flannel_manifest_path }}"
+  register: flannel_apply_result
+  changed_when: "'created' in flannel_apply_result.stdout or 'configured' in flannel_apply_result.stdout"
+  when: flannel_ns_result.rc != 0
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show Flannel apply result
+  ansible.builtin.debug:
+    var: flannel_apply_result.stdout_lines
+  when: flannel_ns_result.rc != 0
+
+- name: Wait for Flannel pods to be ready
+  ansible.builtin.command: kubectl wait --for=condition=Ready pod -l app=flannel -n kube-flannel --timeout=300s
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Wait for CoreDNS pods to be ready
+  ansible.builtin.command: kubectl wait --for=condition=Ready pod -l k8s-app=kube-dns -n kube-system --timeout=300s
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Check Kubernetes nodes after Flannel install
+  ansible.builtin.command: kubectl get nodes -o wide
+  register: nodes_after_flannel
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show Kubernetes nodes after Flannel install
+  ansible.builtin.debug:
+    var: nodes_after_flannel.stdout_lines
+
+- name: Check kube-system pods
+  ansible.builtin.command: kubectl get pods -A -o wide
+  register: pods_after_flannel
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show kube-system pods
+  ansible.builtin.debug:
+    var: pods_after_flannel.stdout_lines

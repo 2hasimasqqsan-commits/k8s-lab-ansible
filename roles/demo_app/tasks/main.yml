@@ -1,0 +1,52 @@
+---
+- name: Render demo app manifest
+  ansible.builtin.template:
+    src: demo-app.yml.j2
+    dest: /tmp/demo-app.yml
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Apply demo app manifest
+  ansible.builtin.command: kubectl apply -f /tmp/demo-app.yml
+  register: demo_app_apply_result
+  changed_when: "'created' in demo_app_apply_result.stdout or 'configured' in demo_app_apply_result.stdout"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show demo app apply result
+  ansible.builtin.debug:
+    var: demo_app_apply_result.stdout_lines
+
+- name: Wait for demo app deployment rollout
+  ansible.builtin.command: >
+    kubectl rollout status deployment/{{ demo_app_name }}
+    -n {{ demo_app_namespace }}
+    --timeout=300s
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Check demo app pods
+  ansible.builtin.command: >
+    kubectl get pods -n {{ demo_app_namespace }} -o wide
+  register: demo_app_pods_result
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show demo app pods
+  ansible.builtin.debug:
+    var: demo_app_pods_result.stdout_lines
+
+- name: Check demo app service
+  ansible.builtin.command: >
+    kubectl get svc -n {{ demo_app_namespace }} -o wide
+  register: demo_app_service_result
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show demo app service
+  ansible.builtin.debug:
+    var: demo_app_service_result.stdout_lines

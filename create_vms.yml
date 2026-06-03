@@ -1,0 +1,25 @@
+---
+- name: Create Kubernetes lab VMs on Proxmox VE
+  hosts: localhost
+  gather_facts: false
+
+  roles:
+    - proxmox_vm
+
+  tasks:
+    - name: Add created VMs to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ item.name }}"
+        groups: k8s_nodes
+        ansible_host: "{{ item.ip }}"
+        ansible_user: "{{ cloud_init_user }}"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+      loop: "{{ k8s_vms }}"
+
+- name: Resize guest OS root filesystem
+  hosts: k8s_nodes
+  gather_facts: false
+  become: true
+
+  roles:
+    - guest_disk_resize

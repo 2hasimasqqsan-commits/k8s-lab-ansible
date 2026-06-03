@@ -1,0 +1,77 @@
+---
+- name: Clone Kubernetes lab VMs from Proxmox template
+  community.proxmox.proxmox_kvm:
+    api_host: "{{ pve_api_host }}"
+    api_user: "{{ pve_api_user }}"
+    api_token_id: "{{ pve_api_token_id }}"
+    api_token_secret: "{{ pve_api_token_secret }}"
+    validate_certs: "{{ pve_validate_certs }}"
+
+    node: "{{ pve_node }}"
+
+    # clone source
+    clone: "{{ pve_template_vmid }}"
+    vmid: "{{ pve_template_vmid }}"
+
+    # new VM
+    newid: "{{ item.vmid }}"
+    name: "{{ item.name }}"
+
+    full: true
+    storage: "{{ pve_storage }}"
+    state: present
+    timeout: 600
+  loop: "{{ k8s_vms }}"
+
+- name: Configure Kubernetes lab VMs with cloud-init
+  community.proxmox.proxmox_kvm:
+    api_host: "{{ pve_api_host }}"
+    api_user: "{{ pve_api_user }}"
+    api_token_id: "{{ pve_api_token_id }}"
+    api_token_secret: "{{ pve_api_token_secret }}"
+    validate_certs: "{{ pve_validate_certs }}"
+
+    node: "{{ pve_node }}"
+    vmid: "{{ item.vmid }}"
+
+    update: true
+    cores: "{{ item.cores | default(2) }}"
+    memory: "{{ item.memory | default(4096) }}"
+    ciuser: "{{ cloud_init_user }}"
+    sshkeys: "{{ cloud_init_ssh_key }}"
+    nameservers:
+      - "{{ k8s_dns }}"
+    ipconfig:
+      ipconfig0: "ip={{ item.ip }}/{{ item.prefix | default(24) }},gw={{ k8s_gateway }}"
+  loop: "{{ k8s_vms }}"
+
+- name: Resize Proxmox VM disks when needed
+  ansible.builtin.shell: |
+    set -e
+    current_size=$(qm config {{ item.vmid }} | awk -F'size=' '/^scsi0:/ {print $2}' | cut -d',' -f1)
+
+    if [ "$current_size" = "{{ item.disk_size | default('40G') }}" ]; then
+      echo "already {{ item.disk_size | default('40G') }}"
+    else
+      qm resize {{ item.vmid }} scsi0 {{ item.disk_size | default('40G') }}
+      echo "resized {{ item.vmid }} to {{ item.disk_size | default('40G') }}"
+    fi
+  args:
+    executable: /bin/bash
+  loop: "{{ k8s_vms }}"
+  delegate_to: "{{ pve_ssh_host_alias }}"
+  register: pve_disk_resize_result
+  changed_when: "'resized' in pve_disk_resize_result.stdout"
+
+- name: Start Kubernetes lab VMs
+  community.proxmox.proxmox_kvm:
+    api_host: "{{ pve_api_host }}"
+    api_user: "{{ pve_api_user }}"
+    api_token_id: "{{ pve_api_token_id }}"
+    api_token_secret: "{{ pve_api_token_secret }}"
+    validate_certs: "{{ pve_validate_certs }}"
+
+    node: "{{ pve_node }}"
+    vmid: "{{ item.vmid }}"
+    state: started
+  loop: "{{ k8s_vms }}"

@@ -1,0 +1,63 @@
+---
+- name: Check if Kubernetes control plane is already initialized
+  ansible.builtin.stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubeadm_admin_conf
+
+- name: Initialize Kubernetes control plane
+  ansible.builtin.command: >
+    kubeadm init
+    --apiserver-advertise-address={{ k8s_control_plane_endpoint }}
+    --pod-network-cidr={{ k8s_pod_network_cidr }}
+  register: kubeadm_init_result
+  when: not kubeadm_admin_conf.stat.exists
+
+- name: Show kubeadm init result
+  ansible.builtin.debug:
+    var: kubeadm_init_result.stdout_lines
+  when: not kubeadm_admin_conf.stat.exists
+
+- name: Ensure .kube directory exists for ansible user
+  ansible.builtin.file:
+    path: "/home/{{ ansible_user }}/.kube"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Copy admin.conf to ansible user's kube config
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "/home/{{ ansible_user }}/.kube/config"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+    remote_src: true
+
+- name: Ensure .kube directory exists for root
+  ansible.builtin.file:
+    path: /root/.kube
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Copy admin.conf to root kube config
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    owner: root
+    group: root
+    mode: "0600"
+    remote_src: true
+
+- name: Check Kubernetes nodes
+  ansible.builtin.command: kubectl get nodes -o wide
+  register: kubectl_nodes_result
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show Kubernetes nodes
+  ansible.builtin.debug:
+    var: kubectl_nodes_result.stdout_lines

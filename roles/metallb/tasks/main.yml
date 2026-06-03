@@ -1,0 +1,87 @@
+---
+- name: Check if MetalLB namespace already exists
+  ansible.builtin.command: kubectl get namespace {{ metallb_namespace }}
+  register: metallb_ns_result
+  changed_when: false
+  failed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Install MetalLB native manifest
+  ansible.builtin.command: kubectl apply -f {{ metallb_manifest_url }}
+  register: metallb_install_result
+  changed_when: >
+    'created' in metallb_install_result.stdout or
+    'configured' in metallb_install_result.stdout
+  when: metallb_ns_result.rc != 0
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show MetalLB install result
+  ansible.builtin.debug:
+    var: metallb_install_result.stdout_lines
+  when: metallb_ns_result.rc != 0
+
+- name: Wait for MetalLB controller to be ready
+  ansible.builtin.command: >
+    kubectl wait --namespace {{ metallb_namespace }}
+    --for=condition=ready pod
+    --selector=component=controller
+    --timeout=300s
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Wait for MetalLB speaker pods to be ready
+  ansible.builtin.command: >
+    kubectl wait --namespace {{ metallb_namespace }}
+    --for=condition=ready pod
+    --selector=component=speaker
+    --timeout=300s
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Render MetalLB L2 configuration
+  ansible.builtin.template:
+    src: metallb-config.yml.j2
+    dest: /tmp/metallb-config.yml
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Apply MetalLB L2 configuration
+  ansible.builtin.command: kubectl apply -f /tmp/metallb-config.yml
+  register: metallb_config_apply_result
+  changed_when: >
+    'created' in metallb_config_apply_result.stdout or
+    'configured' in metallb_config_apply_result.stdout
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show MetalLB L2 configuration result
+  ansible.builtin.debug:
+    var: metallb_config_apply_result.stdout_lines
+
+- name: Check MetalLB pods
+  ansible.builtin.command: kubectl get pods -n {{ metallb_namespace }} -o wide
+  register: metallb_pods_result
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show MetalLB pods
+  ansible.builtin.debug:
+    var: metallb_pods_result.stdout_lines
+
+- name: Check MetalLB IPAddressPool and L2Advertisement
+  ansible.builtin.command: >
+    kubectl get ipaddresspool,l2advertisement -n {{ metallb_namespace }}
+  register: metallb_cr_result
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show MetalLB custom resources
+  ansible.builtin.debug:
+    var: metallb_cr_result.stdout_lines

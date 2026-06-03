@@ -1,0 +1,20 @@
+[local]
+localhost ansible_connection=local
+
+[pve_hosts]
+pve ansible_host=192.168.56.37 ansible_user=root
+
+[k8s_control]
+k8s-control01 ansible_host=192.168.56.129
+
+[k8s_workers]
+k8s-worker01 ansible_host=192.168.56.127
+k8s-worker02 ansible_host=192.168.56.128
+
+[k8s_cluster:children]
+k8s_control
+k8s_workers
+
+[k8s_cluster:vars]
+ansible_user=ansible
+ansible_become=true
