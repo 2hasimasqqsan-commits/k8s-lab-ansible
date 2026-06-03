@@ -108,6 +108,7 @@ kubectl get pods -A -o wide
 kubectl get deploy,pods,svc -n demo-web -o wide
 kubectl get ipaddresspool,l2advertisement -n metallb-system
 curl http://192.168.56.249
+```
 
 ## Security Notes
 
